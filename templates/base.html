@@ -2,10 +2,19 @@
 
 <html>
 <head>
+	<link type="text/css" rel="stylesheet" href="/static/main.css" />
 	<title>Fullstack Multi-User Blog</title>
 </head>
 <body>
+	<h1>Welcome to Jimmy's Multi-User Blog!</h1>
+	<hr>
+
+	<a href="/blog" class="main-title">
+		Jimmy's Blog
+	</a>
+	<div id="content">
 	{% block content %}
 	{% endblock %}
+	</div>
 <body>
 </html>
