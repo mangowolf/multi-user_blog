@@ -2,7 +2,7 @@
 
 <html>
 <head>
-	<link type="text/css" rel="stylesheet" href="/static/main.css"/>
+	<link type="text/css" rel="stylesheet" href="/static/main.css" />
 	<title>Fullstack Multi-User Blog</title>
 </head>
 <body>
@@ -21,9 +21,16 @@
 	{% endif %}
 	</div>
 
+	<div id="nav">
+		<a href="/blog/newpost" id="add-post">Add Post</a>
+	</div>
+	<br>
+	<hr>
+
 	<div id="content">
 	{% block content %}
 	{% endblock %}
 	</div>
+
 <body>
 </html>

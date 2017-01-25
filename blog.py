@@ -15,6 +15,7 @@ template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),autoescape = True)
 
 secret = 'all your base belong to us'
+
 def render_str(template, **params):
 	t = jinja_env.get_template(template)
 	return t.render(params)
@@ -130,7 +131,7 @@ class Post(db.Model):
 class BlogFront(Handler):
 	def get(self):
 		posts = db.GqlQuery("select * from Post order by created desc limit 10")
-		self.render('index.html', posts = posts)
+		self.render('front.html', posts = posts)
 
 class PostPage(Handler):
 	def get(self, post_id):
