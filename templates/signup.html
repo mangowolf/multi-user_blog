@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Register</h2>
+
+<form method="post">
+	<label>Username:</label>
+		<input type="text" name="username" value="{{username}}"> {{error_username}}
+	<br><br>
+	<label>Password:</label>
+		<input type="password" name="password"> {{error_password}}
+	<br><br>
+	<label>Verify Password:</label>
+		<input type="password" name="verify"> {{error_verify}}
+	<br><br>
+	<label>email:</label>
+		<input type="email" name="email" value="{{email}}"> {{error_email}}
+	<br><br>
+	<button type="submit">Submit</button>
+
+	<!--<div>{{pwError}}</div>-->
+
+</form>
+<br>
+username: {{username}}<br>
+password: {{password}}<br>
+vpassword: {{verify}}<br>
+email: {{email}}<br>
+hashedPW: {{hashedPW}}
+
+{% endblock %}
