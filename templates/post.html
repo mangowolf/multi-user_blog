@@ -7,11 +7,18 @@
 		<div class="post-date">
 			{{p.created.strftime("%b %d, %Y")}}
 		</div>
+		<div class="post-by">
+			{{p.createdBy}}
+		</div>
+		<div>
+			{{p.key().id()}}
+		</div>
 	</div>
 
 	<div class="post-content">
 		{{p._render_text | safe}}
 	</div>
-	<a href="edit-post.html">Edit </a>
-	<a href="delete-post.html">Delete</a>
+	<a href="/blog/editpost/{{p.key().id()}}">Edit </a>
+	<a href="/blog/deletepost">Delete</a>
+
 </div>

@@ -123,6 +123,7 @@ class Post(db.Model):
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
+	#createdBy = User.name
 
 	def render(self):
 		self._render_text = self.content.replace('\n', '<br>')
@@ -134,9 +135,13 @@ class BlogFront(Handler):
 		self.render('front.html', posts = posts)
 
 class PostPage(Handler):
-	def get(self, post_id):
+	def getKey(self, post_id):
 		key = db.Key.from_path('Post', int(post_id), parent=blog_key())
-		post = db.get(key)
+		return key
+
+	def get(self, post_id):
+		postKey = self.getKey(post_id)
+		post = db.get(postKey)
 
 		if not post:
 			self.error(404)
@@ -165,6 +170,35 @@ class NewPost(Handler):
 		else:
 			error = "subject and content, please!"
 			self.render("newpost.html", subject=subject, content=content, error=error)
+
+class EditPost(Handler):
+	def get(self, post_id):
+		if self.user:
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			query = db.get(key)
+			self.render("edit-post.html", query=query)
+		else:
+			self.redirect("/login")
+
+	def post(self, post_id):
+		if not self.user:
+			self.redirect('/blog')
+
+		subject = self.request.get('subject')
+		content = self.request.get('content')
+
+		if subject and content:
+			updatedValue = db.Key('Post', int(post_id), parent=blog_key())
+			upVal = updatedValue.get()
+			upVal.subject = subject
+			upVal.content = content
+
+			p = Post(parent = blog_key(), subject = upVal.subject, content = upVal.content)
+			p.put()
+			self.redirect('/blog/%s' % str(p.key().id()))
+		else:
+			error = "subject and content, please!"
+			self.render("edit-post.html", subject=subject, content=content, error=error)
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
@@ -270,6 +304,8 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/blog/?', BlogFront),
 								('/blog/([0-9]+)', PostPage),
 								('/blog/newpost', NewPost),
+								('/blog/editpost/([0-9]+)', EditPost),
+								#('/blog/deletepost', DeletePost),
 								('/signup', Register),
 								('/login', Login),
 								('/logout', Logout),
