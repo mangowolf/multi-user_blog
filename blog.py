@@ -188,14 +188,20 @@ class EditPost(Handler):
 		content = self.request.get('content')
 
 		if subject and content:
-			updatedValue = db.Key('Post', int(post_id), parent=blog_key())
-			upVal = updatedValue.get()
+			#updatedValue = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			#upVal = db.get(updatedValue)
+			upVal = Post.get_by_id(int(post_id), parent=blog_key())
 			upVal.subject = subject
 			upVal.content = content
+			username = self.user.name
+			#p = Post(parent = blog_key(), subject = upVal.subject, content = upVal.content)
+			'''select_post = db.GqlQuery("SELECT * FROM Post WHERE __Key__ = 'Key(blogs, 'default', Post, post_id)'")
+			select_post.subject = subject
+			select_post.content = content'''
 
-			p = Post(parent = blog_key(), subject = upVal.subject, content = upVal.content)
-			p.put()
-			self.redirect('/blog/%s' % str(p.key().id()))
+			#p = Post(parent = blog_key(), subject = upVal, content = upVal)
+			upVal.put()
+			self.redirect('/blog/%s' % str(upVal.key().id()))
 		else:
 			error = "subject and content, please!"
 			self.render("edit-post.html", subject=subject, content=content, error=error)
@@ -213,14 +219,6 @@ def valid_email(email):
 	return not email or EMAIL_RE.match(email)
 
 class Signup(Handler):
-	'''def make_salt(self):
-		return ''.join(random.choice(string.letters) for x in xrange(5))
-
-	def hash_pw(self,name, pw, salt=None):
-		salt = self.make_salt()
-		hashPW = hashlib.sha256(name + pw + salt).hexdigest()
-		return '%s,%s' % (hashPW,salt)
-	'''
 	def get(self):
 		self.render("signup.html")
 
@@ -230,7 +228,6 @@ class Signup(Handler):
 		self.password = self.request.get('password')
 		self.verify = self.request.get('verify')
 		self.email = self.request.get('email')
-		#pwError = "Passwords did not match! Please re-enter password."
 
 		params = dict(username = self.username,
 					email = self.email)
@@ -255,13 +252,7 @@ class Signup(Handler):
 			self.render('signup.html', **params)
 		else:
 			self.done()
-		'''if password == verify:
-			hashedPW = self.hash_pw(username,password)
-			self.render("signup.html", username=username, password=password, verify=verify, email=email, hashedPW=hashedPW)
-		else:
 
-			self.render("signup.html", username=username, email=email, pwError=pwError)
-		'''
 	def done(self, *a, **kw):
 		raise NotImplementedError
 
