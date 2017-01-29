@@ -187,23 +187,45 @@ class EditPost(Handler):
 		subject = self.request.get('subject')
 		content = self.request.get('content')
 
-		if subject and content:
-			#updatedValue = db.Key.from_path('Post', int(post_id), parent=blog_key())
-			#upVal = db.get(updatedValue)
-			upVal = Post.get_by_id(int(post_id), parent=blog_key())
-			upVal.subject = subject
-			upVal.content = content
-			#p = Post(parent = blog_key(), subject = upVal.subject, content = upVal.content)
-			'''select_post = db.GqlQuery("SELECT * FROM Post WHERE __Key__ = 'Key(blogs, 'default', Post, post_id)'")
-			select_post.subject = subject
-			select_post.content = content'''
+		if "update" in self.request.POST:
+			if subject and content:
+				upVal = Post.get_by_id(int(post_id), parent=blog_key())
+				upVal.subject = subject
+				upVal.content = content
+				upVal.put()
+				self.redirect('/blog/%s' % str(upVal.key().id()))
+			else:
+				error = "subject and content, please!"
+				self.render("edit-post.html", subject=subject, content=content, error=error)
 
-			#p = Post(parent = blog_key(), subject = upVal, content = upVal)
-			upVal.put()
-			self.redirect('/blog/%s' % str(upVal.key().id()))
+		if "cancel" in self.request.POST:
+			self.redirect('/blog')
+
+		if "delete" in self.request.POST:
+			if not self.user:
+				self.redirect('/blog')
+
+			postid = Post.get_by_id(int(post_id), parent=blog_key())
+			self.redirect('/blog/delete-confirmation/%s' % str(postid.key().id()))
+
+class DelConfirmation(Handler):
+	def get(self, post_id):
+		if self.user:
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			query = db.get(key)
+			self.render("delete-confirmation.html", query=query)
 		else:
-			error = "subject and content, please!"
-			self.render("edit-post.html", subject=subject, content=content, error=error)
+			self.redirect("/login")
+
+	def post(self, post_id):
+		if not self.user:
+			self.redirect('/blog')
+		if "delete-post" in self.request.POST:
+			delVal = Post.get_by_id(int(post_id), parent=blog_key())
+			delVal.delete()
+			self.redirect("/blog")
+		if "cancel-delete" in self.request.POST:
+			self.redirect("/blog")
 
 class DeletePost(Handler):
 	def get(self, post_id):
@@ -314,6 +336,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/blog/newpost', NewPost),
 								('/blog/editpost/([0-9]+)', EditPost),
 								('/blog/deletepost/([0-9]+)', DeletePost),
+								('/blog/delete-confirmation/([0-9]+)', DelConfirmation),
 								('/signup', Register),
 								('/login', Login),
 								('/logout', Logout),
