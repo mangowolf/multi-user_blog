@@ -193,7 +193,6 @@ class EditPost(Handler):
 			upVal = Post.get_by_id(int(post_id), parent=blog_key())
 			upVal.subject = subject
 			upVal.content = content
-			username = self.user.name
 			#p = Post(parent = blog_key(), subject = upVal.subject, content = upVal.content)
 			'''select_post = db.GqlQuery("SELECT * FROM Post WHERE __Key__ = 'Key(blogs, 'default', Post, post_id)'")
 			select_post.subject = subject
@@ -205,6 +204,24 @@ class EditPost(Handler):
 		else:
 			error = "subject and content, please!"
 			self.render("edit-post.html", subject=subject, content=content, error=error)
+
+class DeletePost(Handler):
+	def get(self, post_id):
+		if self.user:
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			query = db.get(key)
+			self.render("edit-post.html", query=query)
+		else:
+			self.redirect("/login")
+
+	def post(self, post_id):
+		if not self.user:
+			self.redirect('/blog')
+
+		delVal = Post.get_by_id(int(post_id), parent=blog_key())
+		delVal.delete()
+		self.redirect("/blog")
+
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
@@ -296,7 +313,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/blog/([0-9]+)', PostPage),
 								('/blog/newpost', NewPost),
 								('/blog/editpost/([0-9]+)', EditPost),
-								#('/blog/deletepost', DeletePost),
+								('/blog/deletepost/([0-9]+)', DeletePost),
 								('/signup', Register),
 								('/login', Login),
 								('/logout', Logout),
