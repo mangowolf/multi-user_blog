@@ -1,7 +1,7 @@
 <div class="post">
 	<div class="post-heading">
 		<div class="post-title">
-			{{p.subject}}
+			<a href="/blog/{{p.key().id()}}"> {{p.subject}}</a>
 		</div>
 
 		<div class="post-date">
@@ -13,12 +13,24 @@
 		<div>
 			{{p.key().id()}}
 		</div>
+		<div>
+			{{p.like_count}}
+		</div>
+		<div>{{p.user_like}}</div>
 	</div>
 
 	<div class="post-content">
 		{{p._render_text | safe}}
 	</div>
-	<a href="/blog/editpost/{{p.key().id()}}">Edit </a>
-	<a href="/blog/deletepost/{{p.key().id()}}">Delete</a>
-
+	<div>
+		<a href="/blog/editpost/{{p.key().id()}}">Modify </a>
+	</div>
+	<div>
+		<a href="/blog/commentpost/{{p.key().id()}}">Add Comment</a>
+	</div>
+	<div>
+		<form method="post">
+			<input type="submit" name="like-button" value="Like">
+		</form>
+	</div>
 </div>

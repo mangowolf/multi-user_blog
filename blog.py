@@ -123,11 +123,36 @@ class Post(db.Model):
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
-	#createdBy = User.name
+	like_count = db.IntegerProperty()
+	user_like = db.BooleanProperty()
 
 	def render(self):
 		self._render_text = self.content.replace('\n', '<br>')
 		return render_str("post.html", p = self)
+
+class Comment(db.Model):
+	content = db.TextProperty(required = True)
+	created = db.DateTimeProperty(auto_now_add = True)
+	last_modified = db.DateTimeProperty(auto_now = True)
+
+	def render(self):
+		self.__render_text = self.content.replace('\n', '<br>')
+		return render_str("comment.html", c = self)
+
+class CommentPostPage(Handler):
+	def get(self, post_id):
+		key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+		comment = db.get(key)
+
+		if not comment:
+			self.error(404)
+
+		self.render("post-comments.html", comment = comment)
+
+class NewComment(Handler):
+	def get(self):
+		if self.user:
+			self.render()
 
 class BlogFront(Handler):
 	def get(self):
@@ -148,6 +173,7 @@ class PostPage(Handler):
 			return
 
 		self.render("permalink.html", post = post)
+
 
 class NewPost(Handler):
 	def get(self):
@@ -226,24 +252,6 @@ class DelConfirmation(Handler):
 			self.redirect("/blog")
 		if "cancel-delete" in self.request.POST:
 			self.redirect("/blog")
-
-class DeletePost(Handler):
-	def get(self, post_id):
-		if self.user:
-			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
-			query = db.get(key)
-			self.render("edit-post.html", query=query)
-		else:
-			self.redirect("/login")
-
-	def post(self, post_id):
-		if not self.user:
-			self.redirect('/blog')
-
-		delVal = Post.get_by_id(int(post_id), parent=blog_key())
-		delVal.delete()
-		self.redirect("/blog")
-
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
@@ -335,7 +343,8 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/blog/([0-9]+)', PostPage),
 								('/blog/newpost', NewPost),
 								('/blog/editpost/([0-9]+)', EditPost),
-								('/blog/deletepost/([0-9]+)', DeletePost),
+								#('/blog/deletepost/([0-9]+)', DeletePost),
+								('/blog/commentpost/([0-9]+)', CommentPostPage),
 								('/blog/delete-confirmation/([0-9]+)', DelConfirmation),
 								('/signup', Register),
 								('/login', Login),
