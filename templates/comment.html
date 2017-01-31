@@ -1,0 +1,39 @@
+<div>
+<div class="comment">
+	<div class="comment-heading">
+		<div class="post-date">
+			{{c.created.strftime("%b %d, %Y")}}
+		</div>
+		<div class="post-by">
+			{{c.createdBy}}
+		</div>
+		<div>
+			{{c.content}}
+		</div>
+		<div>
+			{{c.postid}}
+		</div>
+		<div>
+			{{c.last_modified}}
+		</div>
+		<div>
+			{{c.like_count}}
+		</div>
+		<div>{{c.user_like}}</div>
+	</div>
+
+	<div class="comment-content">
+		{{c._render_text | safe}}
+	</div>
+	<!--
+	<div>
+		<a href="/blog/editpost/{{c.key().id()}}">Modify </a>
+	</div>
+	-->
+	<div>
+		<form method="post">
+			<input type="submit" name="like-button" value="Like">
+		</form>
+	</div>
+</div>
+</div>

@@ -115,8 +115,11 @@ class User(db.Model):
 
 ###Blog Definitions and Classes
 
-def blog_key(name = 'default'):
+def blog_key(name):
 	return db.Key.from_path('blogs', name)
+
+def post_key(id):
+	return db.Key.from_path('Post', id)
 
 class Post(db.Model):
 	subject = db.StringProperty(required = True)
@@ -132,6 +135,7 @@ class Post(db.Model):
 
 class Comment(db.Model):
 	content = db.TextProperty(required = True)
+	postid = db.StringProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
 
@@ -141,18 +145,30 @@ class Comment(db.Model):
 
 class CommentPostPage(Handler):
 	def get(self, post_id):
-		key = db.Key.from_path('Post', int(post_id), parent=blog_key())
-		comment = db.get(key)
-
-		if not comment:
-			self.error(404)
-
-		self.render("post-comments.html", comment = comment)
-
-class NewComment(Handler):
-	def get(self):
 		if self.user:
-			self.render()
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
+			post = db.get(key)
+
+			if not post:
+				self.error(404)
+
+			comments = db.GqlQuery("SELECT * FROM Comment WHERE postid =:1", str(post_id))
+			#comments = db.Key.from_path('Comment', int(key), parent=post_key(post_id))
+			#comments = db.GqlQuery("SELECT * FROM Comment WHERE postid =:1", post_id)
+			self.render("post-comments.html", post = post, comments=comments)
+		else:
+			self.redirect('/login')
+
+	def post(self, post_id):
+		if not self.user:
+			self.redirect('/blog')
+
+		content = self.request.get('content')
+
+		if content:
+			c = Comment(postid = post_id, content = content)
+			c.put()
+			self.redirect('/blog/commentpost/%s' % post_id)
 
 class BlogFront(Handler):
 	def get(self):
@@ -161,7 +177,7 @@ class BlogFront(Handler):
 
 class PostPage(Handler):
 	def getKey(self, post_id):
-		key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+		key = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
 		return key
 
 	def get(self, post_id):
@@ -173,6 +189,14 @@ class PostPage(Handler):
 			return
 
 		self.render("permalink.html", post = post)
+
+	def post(self, post_id):
+
+		if "like-button" in self.request.POST:
+			key = Post.get_by_id(int(post_id), parent=blog_key())
+			likeVal = db.get(key)
+			likeVal.user_val = True
+			likeVal.like_count += 1
 
 
 class NewPost(Handler):
@@ -190,7 +214,7 @@ class NewPost(Handler):
 		content = self.request.get('content')
 
 		if subject and content:
-			p = Post(parent = blog_key(), subject = subject, content = content)
+			p = Post(parent = blog_key(self.user.name), subject = subject, content = content)
 			p.put()
 			self.redirect('/blog/%s' % str(p.key().id()))
 		else:
