@@ -122,6 +122,7 @@ def post_key(id):
 	return db.Key.from_path('Post', id)
 
 class Post(db.Model):
+	author = db.StringProperty()
 	subject = db.StringProperty(required = True)
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
@@ -175,6 +176,32 @@ class BlogFront(Handler):
 		posts = db.GqlQuery("select * from Post order by created desc limit 10")
 		self.render('front.html', posts = posts)
 
+	def post(self):
+
+		if "like-button" in self.request.POST:
+			'''
+			post_id = self.request.get("id")
+			key = db.Key.from_path('Post', int(post_id))
+			post = db.get(key)
+			if not post:
+				self.error(404)
+				return
+			if self.user:
+				error = 'You cannot like your own posts!'
+				posts = db.GqlQuery("select * from Post order by created desc limit 10")
+				self.render('front.html', posts = posts, error = error)
+			else:'''
+			post_id = self.request.get("id")
+			#likeVal = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
+			likeVal = db.Key.from_path('Post', post_id, parent=blog_key(self.user.name))
+			#likeVal = db.get(key)
+			post = db.get(likeVal)
+			post.user_like = True
+			post.like_count += 1
+			post.put()
+			#self.render("permalink.html", post = post)
+			self.redirect('/blog/')
+
 class PostPage(Handler):
 	def getKey(self, post_id):
 		key = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
@@ -193,10 +220,20 @@ class PostPage(Handler):
 	def post(self, post_id):
 
 		if "like-button" in self.request.POST:
-			key = Post.get_by_id(int(post_id), parent=blog_key())
-			likeVal = db.get(key)
-			likeVal.user_val = True
-			likeVal.like_count += 1
+			'''
+			if self.user:
+				error = 'You cannot like your own posts!'
+				posts = db.GqlQuery("select * from Post order by created desc limit 10")
+				self.render('front.html', posts = posts, error = error)
+			else:'''
+			likePost = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
+			post = db.get(likePost)
+			#post = db.get(likeVal)
+			post.user_like = True
+			post.like_count += 1
+			post.put()
+			self.render("permalink.html", post = post)
+			#self.redirect('/blog/')
 
 
 class NewPost(Handler):
@@ -210,11 +247,14 @@ class NewPost(Handler):
 		if not self.user:
 			self.redirect('/blog')
 
+		author = self.user.name
 		subject = self.request.get('subject')
 		content = self.request.get('content')
+		user_like = False;
+		like_count = 0;
 
 		if subject and content:
-			p = Post(parent = blog_key(self.user.name), subject = subject, content = content)
+			p = Post(parent = blog_key(self.user.name), subject = subject, content = content, user_like = user_like, like_count = like_count, author = author)
 			p.put()
 			self.redirect('/blog/%s' % str(p.key().id()))
 		else:
@@ -224,7 +264,7 @@ class NewPost(Handler):
 class EditPost(Handler):
 	def get(self, post_id):
 		if self.user:
-			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
 			query = db.get(key)
 			self.render("edit-post.html", query=query)
 		else:
@@ -239,7 +279,7 @@ class EditPost(Handler):
 
 		if "update" in self.request.POST:
 			if subject and content:
-				upVal = Post.get_by_id(int(post_id), parent=blog_key())
+				upVal = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
 				upVal.subject = subject
 				upVal.content = content
 				upVal.put()
@@ -255,7 +295,7 @@ class EditPost(Handler):
 			if not self.user:
 				self.redirect('/blog')
 
-			postid = Post.get_by_id(int(post_id), parent=blog_key())
+			postid = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
 			self.redirect('/blog/delete-confirmation/%s' % str(postid.key().id()))
 
 class DelConfirmation(Handler):
@@ -270,10 +310,12 @@ class DelConfirmation(Handler):
 	def post(self, post_id):
 		if not self.user:
 			self.redirect('/blog')
+
 		if "delete-post" in self.request.POST:
 			delVal = Post.get_by_id(int(post_id), parent=blog_key())
 			delVal.delete()
 			self.redirect("/blog")
+
 		if "cancel-delete" in self.request.POST:
 			self.redirect("/blog")
 

@@ -8,7 +8,7 @@
 			{{p.created.strftime("%b %d, %Y")}}
 		</div>
 		<div class="post-by">
-			{{p.createdBy}}
+			{{p.author}}
 		</div>
 		<div>
 			{{p.like_count}}
@@ -27,7 +27,8 @@
 	</div>
 	<div>
 		<form method="post">
-			<input type="submit" name="like-button" value="Like">
+			<input type="submit" name="like-button" value="Like" id="{{p.key().id()}}">
 		</form>
 	</div>
+
 </div>
