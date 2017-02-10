@@ -26,7 +26,7 @@
 		<a href="/blog/commentpost/{{p.key().id()}}">Add Comment</a>
 	</div>
 	<div>
-		<form method="post">
+		<form method="post" action="/blog/{{p.key().id()}}/like">
 			<input type="submit" name="like-button" value="Like" id="{{p.key().id()}}">
 		</form>
 	</div>

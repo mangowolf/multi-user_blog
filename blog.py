@@ -175,11 +175,11 @@ class BlogFront(Handler):
 	def get(self):
 		posts = db.GqlQuery("select * from Post order by created desc limit 10")
 		self.render('front.html', posts = posts)
-
+'''
 	def post(self):
 
 		if "like-button" in self.request.POST:
-			'''
+
 			post_id = self.request.get("id")
 			key = db.Key.from_path('Post', int(post_id))
 			post = db.get(key)
@@ -190,7 +190,7 @@ class BlogFront(Handler):
 				error = 'You cannot like your own posts!'
 				posts = db.GqlQuery("select * from Post order by created desc limit 10")
 				self.render('front.html', posts = posts, error = error)
-			else:'''
+			else:
 			post_id = self.request.get("id")
 			#likeVal = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
 			likeVal = db.Key.from_path('Post', post_id, parent=blog_key(self.user.name))
@@ -201,6 +201,15 @@ class BlogFront(Handler):
 			post.put()
 			#self.render("permalink.html", post = post)
 			self.redirect('/blog/')
+'''
+class LikePost(Handler):
+	def post(self, post_id):
+		likeVal = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
+		post = db.get(likeVal)
+		post.user_like = True
+		post.like_count += 1
+		post.put()
+		self.redirect('/blog/')
 
 class PostPage(Handler):
 	def getKey(self, post_id):
@@ -216,16 +225,16 @@ class PostPage(Handler):
 			return
 
 		self.render("permalink.html", post = post)
-
+'''
 	def post(self, post_id):
 
 		if "like-button" in self.request.POST:
-			'''
+
 			if self.user:
 				error = 'You cannot like your own posts!'
 				posts = db.GqlQuery("select * from Post order by created desc limit 10")
 				self.render('front.html', posts = posts, error = error)
-			else:'''
+			else:
 			likePost = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
 			post = db.get(likePost)
 			#post = db.get(likeVal)
@@ -234,8 +243,7 @@ class PostPage(Handler):
 			post.put()
 			self.render("permalink.html", post = post)
 			#self.redirect('/blog/')
-
-
+'''
 class NewPost(Handler):
 	def get(self):
 		if self.user:
@@ -410,6 +418,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/blog/newpost', NewPost),
 								('/blog/editpost/([0-9]+)', EditPost),
 								#('/blog/deletepost/([0-9]+)', DeletePost),
+								('/blog/([0-9]+)/like', LikePost),
 								('/blog/commentpost/([0-9]+)', CommentPostPage),
 								('/blog/delete-confirmation/([0-9]+)', DelConfirmation),
 								('/signup', Register),
