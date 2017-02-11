@@ -115,20 +115,20 @@ class User(db.Model):
 
 ###Blog Definitions and Classes
 
-def blog_key(name):
+def blog_key(name = 'default'):
 	return db.Key.from_path('blogs', name)
 
 def post_key(id):
 	return db.Key.from_path('Post', id)
 
 class Post(db.Model):
-	author = db.StringProperty()
+	author = db.StringProperty(required = True)
 	subject = db.StringProperty(required = True)
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
 	like_count = db.IntegerProperty()
-	user_like = db.BooleanProperty()
+	user_like = db.StringListProperty()
 
 	def render(self):
 		self._render_text = self.content.replace('\n', '<br>')
@@ -147,7 +147,7 @@ class Comment(db.Model):
 class CommentPostPage(Handler):
 	def get(self, post_id):
 		if self.user:
-			key = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
 			post = db.get(key)
 
 			if not post:
@@ -192,7 +192,7 @@ class BlogFront(Handler):
 				self.render('front.html', posts = posts, error = error)
 			else:
 			post_id = self.request.get("id")
-			#likeVal = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
+			#likeVal = Post.get_by_id(int(post_id), parent=blog_key())
 			likeVal = db.Key.from_path('Post', post_id, parent=blog_key(self.user.name))
 			#likeVal = db.get(key)
 			post = db.get(likeVal)
@@ -204,16 +204,23 @@ class BlogFront(Handler):
 '''
 class LikePost(Handler):
 	def post(self, post_id):
-		likeVal = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
+		likeVal = db.Key.from_path('Post', int(post_id), parent=blog_key())
 		post = db.get(likeVal)
-		post.user_like = True
-		post.like_count += 1
-		post.put()
-		self.redirect('/blog/')
+
+		if self.user.name != post.author:
+			if self.user.name in post.user_like:
+				self.write("you can only like a post once")
+			else:
+				post.user_like.append(self.user.name)
+				post.like_count += 1
+				post.put()
+				self.redirect('/blog/')
+		if self.user.name == post.author:
+			self.write("you can't like your own post")
 
 class PostPage(Handler):
 	def getKey(self, post_id):
-		key = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
+		key = db.Key.from_path('Post', int(post_id), parent=blog_key())
 		return key
 
 	def get(self, post_id):
@@ -258,11 +265,11 @@ class NewPost(Handler):
 		author = self.user.name
 		subject = self.request.get('subject')
 		content = self.request.get('content')
-		user_like = False;
+		user_like = [];
 		like_count = 0;
 
 		if subject and content:
-			p = Post(parent = blog_key(self.user.name), subject = subject, content = content, user_like = user_like, like_count = like_count, author = author)
+			p = Post(parent = blog_key(), subject = subject, content = content, user_like = user_like, like_count = like_count, author = author)
 			p.put()
 			self.redirect('/blog/%s' % str(p.key().id()))
 		else:
@@ -272,7 +279,7 @@ class NewPost(Handler):
 class EditPost(Handler):
 	def get(self, post_id):
 		if self.user:
-			key = db.Key.from_path('Post', int(post_id), parent=blog_key(self.user.name))
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
 			query = db.get(key)
 			self.render("edit-post.html", query=query)
 		else:
@@ -287,7 +294,7 @@ class EditPost(Handler):
 
 		if "update" in self.request.POST:
 			if subject and content:
-				upVal = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
+				upVal = Post.get_by_id(int(post_id), parent=blog_key())
 				upVal.subject = subject
 				upVal.content = content
 				upVal.put()
@@ -303,7 +310,7 @@ class EditPost(Handler):
 			if not self.user:
 				self.redirect('/blog')
 
-			postid = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
+			postid = Post.get_by_id(int(post_id), parent=blog_key())
 			self.redirect('/blog/delete-confirmation/%s' % str(postid.key().id()))
 
 class DelConfirmation(Handler):
