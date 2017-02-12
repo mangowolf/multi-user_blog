@@ -8,12 +8,11 @@
 			{{p.created.strftime("%b %d, %Y")}}
 		</div>
 		<div class="post-by">
-			{{p.author}}
+			posted by: {{p.author}}
 		</div>
 		<div>
-			{{p.like_count}}
+			likes: {{p.like_count}}
 		</div>
-		<div>{{p.user_like}}</div>
 	</div>
 
 	<div class="post-content">
@@ -30,5 +29,7 @@
 			<input type="submit" name="like-button" value="Like" id="{{p.key().id()}}">
 		</form>
 	</div>
-
+		<div class="error">
+			{{error}}
+		</div>
 </div>

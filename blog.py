@@ -7,6 +7,7 @@ from string import letters
 
 import webapp2
 import jinja2
+import time
 
 
 from google.appengine.ext import db
@@ -66,7 +67,7 @@ def render_post(response, post):
 
 class MainPage(Handler):
 	def get(self):
-		self.write('Hello, Udacity')
+		self.redirect("/blog")
 
 #######User Functions
 def make_salt(length = 5):
@@ -154,8 +155,6 @@ class CommentPostPage(Handler):
 				self.error(404)
 
 			comments = db.GqlQuery("SELECT * FROM Comment WHERE postid =:1", str(post_id))
-			#comments = db.Key.from_path('Comment', int(key), parent=post_key(post_id))
-			#comments = db.GqlQuery("SELECT * FROM Comment WHERE postid =:1", post_id)
 			self.render("post-comments.html", post = post, comments=comments)
 		else:
 			self.redirect('/login')
@@ -164,59 +163,48 @@ class CommentPostPage(Handler):
 		if not self.user:
 			self.redirect('/blog')
 
-		content = self.request.get('content')
+		if "submit" in self.request.POST:
+			content = self.request.get('content')
 
-		if content:
-			c = Comment(postid = post_id, content = content)
-			c.put()
-			self.redirect('/blog/commentpost/%s' % post_id)
-
+			if content:
+				c = Comment(postid = post_id, content = content)
+				c.put()
+				time.sleep(0.1)
+				self.redirect('/blog/commentpost/%s' % post_id)
+		if "cancel" in self.request.POST:
+			self.redirect("/blog")
+'''
+class EditComment(Handler):
+	def get(self, comment_id):
+		if self.user:
+			key.db.Key.from_path('')
+'''
 class BlogFront(Handler):
 	def get(self):
 		posts = db.GqlQuery("select * from Post order by created desc limit 10")
 		self.render('front.html', posts = posts)
-'''
-	def post(self):
 
-		if "like-button" in self.request.POST:
-
-			post_id = self.request.get("id")
-			key = db.Key.from_path('Post', int(post_id))
-			post = db.get(key)
-			if not post:
-				self.error(404)
-				return
-			if self.user:
-				error = 'You cannot like your own posts!'
-				posts = db.GqlQuery("select * from Post order by created desc limit 10")
-				self.render('front.html', posts = posts, error = error)
-			else:
-			post_id = self.request.get("id")
-			#likeVal = Post.get_by_id(int(post_id), parent=blog_key())
-			likeVal = db.Key.from_path('Post', post_id, parent=blog_key(self.user.name))
-			#likeVal = db.get(key)
-			post = db.get(likeVal)
-			post.user_like = True
-			post.like_count += 1
-			post.put()
-			#self.render("permalink.html", post = post)
-			self.redirect('/blog/')
-'''
 class LikePost(Handler):
 	def post(self, post_id):
-		likeVal = db.Key.from_path('Post', int(post_id), parent=blog_key())
-		post = db.get(likeVal)
+		if self.user:
+			likeVal = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			post = db.get(likeVal)
 
-		if self.user.name != post.author:
-			if self.user.name in post.user_like:
-				self.write("you can only like a post once")
-			else:
-				post.user_like.append(self.user.name)
-				post.like_count += 1
-				post.put()
-				self.redirect('/blog/')
-		if self.user.name == post.author:
-			self.write("you can't like your own post")
+			if self.user.name != post.author:
+				if self.user.name in post.user_like:
+					self.write("you can only like a post once")
+				else:
+					post.user_like.append(self.user.name)
+					post.like_count += 1
+					post.put()
+					time.sleep(0.1)
+					self.redirect("/blog")
+			if self.user.name == post.author:
+				self.write("you can't like your own post!")
+				'''error = "You can't like your own post!"
+				self.render("front.html", post = post, error = error)'''
+		else:
+			self.redirect("/login")
 
 class PostPage(Handler):
 	def getKey(self, post_id):
@@ -232,25 +220,7 @@ class PostPage(Handler):
 			return
 
 		self.render("permalink.html", post = post)
-'''
-	def post(self, post_id):
 
-		if "like-button" in self.request.POST:
-
-			if self.user:
-				error = 'You cannot like your own posts!'
-				posts = db.GqlQuery("select * from Post order by created desc limit 10")
-				self.render('front.html', posts = posts, error = error)
-			else:
-			likePost = Post.get_by_id(int(post_id), parent=blog_key(self.user.name))
-			post = db.get(likePost)
-			#post = db.get(likeVal)
-			post.user_like = True
-			post.like_count += 1
-			post.put()
-			self.render("permalink.html", post = post)
-			#self.redirect('/blog/')
-'''
 class NewPost(Handler):
 	def get(self):
 		if self.user:
@@ -268,13 +238,17 @@ class NewPost(Handler):
 		user_like = [];
 		like_count = 0;
 
-		if subject and content:
-			p = Post(parent = blog_key(), subject = subject, content = content, user_like = user_like, like_count = like_count, author = author)
-			p.put()
-			self.redirect('/blog/%s' % str(p.key().id()))
-		else:
-			error = "subject and content, please!"
-			self.render("newpost.html", subject=subject, content=content, error=error)
+		if "submit" in self.request.POST:
+			if subject and content:
+				p = Post(parent = blog_key(), subject = subject, content = content, like_count = like_count, author = author)
+				p.put()
+				self.redirect('/blog/%s' % str(p.key().id()))
+			else:
+				error = "subject and content, please!"
+				self.render("newpost.html", subject=subject, content=content, error=error)
+		
+		if "cancel" in self.request.POST:
+			self.redirect('/blog')
 
 class EditPost(Handler):
 	def get(self, post_id):
@@ -351,35 +325,38 @@ class Signup(Handler):
 		self.render("signup.html")
 
 	def post(self):
-		has_error = False
-		self.username = self.request.get('username')
-		self.password = self.request.get('password')
-		self.verify = self.request.get('verify')
-		self.email = self.request.get('email')
+		if "submit" in self.request.POST:
+			has_error = False
+			self.username = self.request.get('username')
+			self.password = self.request.get('password')
+			self.verify = self.request.get('verify')
+			self.email = self.request.get('email')
 
-		params = dict(username = self.username,
-					email = self.email)
+			params = dict(username = self.username,
+						email = self.email)
 
-		if not valid_username(self.username):
-			params['error_username'] = "That's not a valid username."
-			has_error = True
+			if not valid_username(self.username):
+				params['error_username'] = "That's not a valid username."
+				has_error = True
 
-		if not valid_password(self.password):
-			params['error_password'] = "That wasn't a valid password."
-			has_error = True
+			if not valid_password(self.password):
+				params['error_password'] = "That wasn't a valid password."
+				has_error = True
 
-		elif self.password != self.verify:
-			params['error_verify'] = "Your passwords didn't match"
-			has_error = True
+			elif self.password != self.verify:
+				params['error_verify'] = "Your passwords didn't match"
+				has_error = True
 
-		if not valid_email(self.email):
-			params['error_email'] = "That's not a valid email."
-			has_error = True
+			if not valid_email(self.email):
+				params['error_email'] = "That's not a valid email."
+				has_error = True
 
-		if has_error:
-			self.render('signup.html', **params)
-		else:
-			self.done()
+			if has_error:
+				self.render('signup.html', **params)
+			else:
+				self.done()
+		if "cancel" in self.request.POST:
+			self.redirect("/blog")
 
 	def done(self, *a, **kw):
 		raise NotImplementedError
@@ -403,16 +380,19 @@ class Login(Handler):
 		self.render('login-form.html')
 
 	def post(self):
-		username = self.request.get('username')
-		password = self.request.get('password')
+		if "submit" in self.request.POST:
+			username = self.request.get('username')
+			password = self.request.get('password')
 
-		u = User.login(username, password)
-		if u:
-			self.login(u)
-			self.redirect('/blog')
-		else:
-			msg = 'Invalid login'
-			self.render('login-form.html', error = msg)
+			u = User.login(username, password)
+			if u:
+				self.login(u)
+				self.redirect('/blog')
+			else:
+				msg = 'Invalid login'
+				self.render('login-form.html', error = msg)
+		if "cancel" in self.request.POST:
+			self.redirect("/blog")
 
 class Logout(Handler):
 	def get(self):

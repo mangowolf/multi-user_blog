@@ -4,6 +4,7 @@
 
 	{% for p in posts %}
 		{{ p.render() | safe }}
+		{{error}}
 		<br>
 		<br>
 	{% endfor %}
