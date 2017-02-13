@@ -18,18 +18,10 @@
 	<div class="post-content">
 		{{p._render_text | safe}}
 	</div>
-	<div>
-		<a href="/blog/editpost/{{p.key().id()}}">Modify </a>
-	</div>
-	<div>
-		<a href="/blog/commentpost/{{p.key().id()}}">Add Comment</a>
-	</div>
+
 	<div>
 		<form method="post" action="/blog/{{p.key().id()}}/like">
 			<input type="submit" name="like-button" value="Like" id="{{p.key().id()}}">
 		</form>
 	</div>
-		<div class="error">
-			{{error}}
-		</div>
 </div>

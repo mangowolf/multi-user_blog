@@ -87,6 +87,8 @@ def users_key(group = 'default'):
 	return db.Key.from_path('users', group)
 
 class User(db.Model):
+	'''Model defining the User object'''
+
 	name = db.StringProperty(required = True)
 	pw_hash = db.StringProperty(required = True)
 	email = db.StringProperty()
@@ -119,16 +121,17 @@ class User(db.Model):
 def blog_key(name = 'default'):
 	return db.Key.from_path('blogs', name)
 
-def post_key(id):
-	return db.Key.from_path('Post', id)
-
+##Models
 class Post(db.Model):
+	'''Model for Post Objects'''
+
 	author = db.StringProperty(required = True)
 	subject = db.StringProperty(required = True)
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
 	like_count = db.IntegerProperty()
+	#Array containing all users who have liked a post
 	user_like = db.StringListProperty()
 
 	def render(self):
@@ -136,6 +139,9 @@ class Post(db.Model):
 		return render_str("post.html", p = self)
 
 class Comment(db.Model):
+	'''Model for Comment Objects'''
+
+	author = db.StringProperty(required = True)
 	content = db.TextProperty(required = True)
 	postid = db.StringProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
@@ -145,75 +151,21 @@ class Comment(db.Model):
 		self.__render_text = self.content.replace('\n', '<br>')
 		return render_str("comment.html", c = self)
 
-class CommentPostPage(Handler):
-	def get(self, post_id):
-		if self.user:
-			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
-			post = db.get(key)
+##Post Handlers
 
-			if not post:
-				self.error(404)
-
-			comments = db.GqlQuery("SELECT * FROM Comment WHERE postid =:1", str(post_id))
-			self.render("post-comments.html", post = post, comments=comments)
-		else:
-			self.redirect('/login')
-
-	def post(self, post_id):
-		if not self.user:
-			self.redirect('/blog')
-
-		if "submit" in self.request.POST:
-			content = self.request.get('content')
-
-			if content:
-				c = Comment(postid = post_id, content = content)
-				c.put()
-				time.sleep(0.1)
-				self.redirect('/blog/commentpost/%s' % post_id)
-		if "cancel" in self.request.POST:
-			self.redirect("/blog")
-'''
-class EditComment(Handler):
-	def get(self, comment_id):
-		if self.user:
-			key.db.Key.from_path('')
-'''
 class BlogFront(Handler):
+	'''Handler for all Blog Postings'''
+
 	def get(self):
 		posts = db.GqlQuery("select * from Post order by created desc limit 10")
 		self.render('front.html', posts = posts)
 
-class LikePost(Handler):
-	def post(self, post_id):
-		if self.user:
-			likeVal = db.Key.from_path('Post', int(post_id), parent=blog_key())
-			post = db.get(likeVal)
-
-			if self.user.name != post.author:
-				if self.user.name in post.user_like:
-					self.write("you can only like a post once")
-				else:
-					post.user_like.append(self.user.name)
-					post.like_count += 1
-					post.put()
-					time.sleep(0.1)
-					self.redirect("/blog")
-			if self.user.name == post.author:
-				self.write("you can't like your own post!")
-				'''error = "You can't like your own post!"
-				self.render("front.html", post = post, error = error)'''
-		else:
-			self.redirect("/login")
-
 class PostPage(Handler):
-	def getKey(self, post_id):
-		key = db.Key.from_path('Post', int(post_id), parent=blog_key())
-		return key
+	'''Handler for rendering posts'''
 
 	def get(self, post_id):
-		postKey = self.getKey(post_id)
-		post = db.get(postKey)
+		key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+		post = db.get(key)
 
 		if not post:
 			self.error(404)
@@ -222,6 +174,8 @@ class PostPage(Handler):
 		self.render("permalink.html", post = post)
 
 class NewPost(Handler):
+	'''Handler for new Posts'''
+
 	def get(self):
 		if self.user:
 			self.render("newpost.html")
@@ -251,11 +205,20 @@ class NewPost(Handler):
 			self.redirect('/blog')
 
 class EditPost(Handler):
+	'''Handler for Editing Posts'''
+
 	def get(self, post_id):
 		if self.user:
 			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
-			query = db.get(key)
-			self.render("edit-post.html", query=query)
+			post = db.get(key)
+			if self.user.name == post.author:
+				self.render("edit-post.html", post=post)
+			else:
+				#posts = db.GqlQuery("select * from Post order by created desc limit 10")
+				#self.render("front.html", posts = posts)
+				error = "You can't edit other Users posts!"
+				self.redirect("/blog", error = error)
+				self.write("You can't edit other User's posts!")
 		else:
 			self.redirect("/login")
 
@@ -278,7 +241,7 @@ class EditPost(Handler):
 				self.render("edit-post.html", subject=subject, content=content, error=error)
 
 		if "cancel" in self.request.POST:
-			self.redirect('/blog')
+			self.redirect('/blog/%s' % str(post_id))
 
 		if "delete" in self.request.POST:
 			if not self.user:
@@ -288,6 +251,8 @@ class EditPost(Handler):
 			self.redirect('/blog/delete-confirmation/%s' % str(postid.key().id()))
 
 class DelConfirmation(Handler):
+	'''Handler to delete Posts'''
+
 	def get(self, post_id):
 		if self.user:
 			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
@@ -308,6 +273,97 @@ class DelConfirmation(Handler):
 		if "cancel-delete" in self.request.POST:
 			self.redirect("/blog")
 
+class LikePost(Handler):
+	'''Handler for Liking Posts'''
+
+	def post(self, post_id):
+		if self.user:
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			post = db.get(key)
+
+			if self.user.name != post.author:
+				if self.user.name in post.user_like:
+					self.write("you can only like a post once")
+				else:
+					post.user_like.append(self.user.name)
+					post.like_count += 1
+					post.put()
+					time.sleep(0.1)
+					self.redirect("/blog")
+			if self.user.name == post.author:
+				self.write("you can't like your own post!")
+				'''error = "You can't like your own post!"
+				self.render("front.html", post = post, error = error)'''
+		else:
+			self.redirect("/login")
+
+##Comment Handlers
+class CommentPostPage(Handler):
+	'''Handler for Comment Posts'''
+
+	def get(self, post_id):
+		if self.user:
+			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+			post = db.get(key)
+
+			if not post:
+				self.error(404)
+
+			comments = db.GqlQuery("SELECT * FROM Comment WHERE postid =:1", str(post_id))
+			self.render("post-comments.html", post = post, comments=comments)
+		else:
+			self.redirect('/login')
+
+	def post(self, post_id):
+		if not self.user:
+			self.redirect('/blog')
+
+		if "submit" in self.request.POST:
+			content = self.request.get('content')
+			author = self.user.name
+
+			if content:
+				c = Comment(postid = post_id, content = content, author = author)
+				c.put()
+				time.sleep(0.1)
+				self.redirect('/blog/commentpost/%s' % post_id)
+		if "cancel" in self.request.POST:
+			self.redirect("/blog/%s" % str(post_id))
+
+class EditComment(Handler):
+	'''Handler for editing comments for a post'''
+
+	def get(self, comment_id):
+		if self.user:
+			key = db.Key.from_path('Comment', int(comment_id))
+			comment = db.get(key)
+			if self.user.name == comment.author:
+				self.render("edit-comment.html", comment = comment)
+			else:
+				self.write("You can't edit other User's comments!")
+		else:
+			self.redirect("/login")
+
+	def post(self, comment_id):
+		if not self.user:
+			self.redirect("/blog")
+
+		content = self.request.get("content")
+		commentVal = Comment.get_by_id(int(comment_id))
+
+		if "update" in self.request.POST:
+			if content:
+				commentVal.content = content
+				commentVal.put()
+				time.sleep(0.1)
+				self.redirect("/blog/commentpost/%s" % str(commentVal.postid))
+		
+		if "cancel" in self.request.POST:
+			self.redirect('/blog/commentpost/%s' % str(commentVal.postid))
+			#self.write("working")
+
+##Registration and Login Handlers
+
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
 	return username and USER_RE.match(username)
@@ -321,6 +377,8 @@ def valid_email(email):
 	return not email or EMAIL_RE.match(email)
 
 class Signup(Handler):
+	'''Handler for New User Signups'''
+
 	def get(self):
 		self.render("signup.html")
 
@@ -362,6 +420,8 @@ class Signup(Handler):
 		raise NotImplementedError
 
 class Register(Signup):
+	'''Handler for new User registration'''
+
 	def done(self):
 		#make sure the user doesn't already exist
 		u = User.by_name(self.username)
@@ -376,6 +436,8 @@ class Register(Signup):
 			self.redirect('/blog')
 
 class Login(Handler):
+	'''Handler for User login'''
+
 	def get(self):
 		self.render('login-form.html')
 
@@ -395,6 +457,8 @@ class Login(Handler):
 			self.redirect("/blog")
 
 class Logout(Handler):
+	'''Handler for User logout'''
+
 	def get(self):
 		self.logout()
 		self.redirect('/blog')
@@ -404,9 +468,9 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/blog/([0-9]+)', PostPage),
 								('/blog/newpost', NewPost),
 								('/blog/editpost/([0-9]+)', EditPost),
-								#('/blog/deletepost/([0-9]+)', DeletePost),
 								('/blog/([0-9]+)/like', LikePost),
 								('/blog/commentpost/([0-9]+)', CommentPostPage),
+								('/blog/editcomment/([0-9]+)', EditComment),
 								('/blog/delete-confirmation/([0-9]+)', DelConfirmation),
 								('/signup', Register),
 								('/login', Login),
