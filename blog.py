@@ -14,6 +14,7 @@ from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),autoescape = True)
+error = ""
 
 secret = 'all your base belong to us'
 
@@ -34,7 +35,6 @@ class Handler(webapp2.RequestHandler):
 		self.response.out.write(*a, **kw)
 
 	def render_str(self, template, **params):
-		#t = jinja_env.get_template(template)
 		params['user'] = self.user
 		return render_str(template, **params)
 
@@ -59,7 +59,6 @@ class Handler(webapp2.RequestHandler):
 		webapp2.RequestHandler.initialize(self, *a, **kw)
 		uid = self.read_secure_cookie('user_id')
 		self.user = uid and User.by_id(int(uid))
-
 
 def render_post(response, post):
 	response.out.write('<b>' + post.subject + '</b><br>')
@@ -130,7 +129,7 @@ class Post(db.Model):
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
-	like_count = db.IntegerProperty()
+	like_count = db.IntegerProperty(default=0)
 	#Array containing all users who have liked a post
 	user_like = db.StringListProperty()
 
@@ -184,22 +183,21 @@ class NewPost(Handler):
 
 	def post(self):
 		if not self.user:
-			self.redirect('/blog')
+			return self.redirect('/blog')
 
 		author = self.user.name
 		subject = self.request.get('subject')
 		content = self.request.get('content')
 		user_like = [];
-		like_count = 0;
 
 		if "submit" in self.request.POST:
 			if subject and content:
-				p = Post(parent = blog_key(), subject = subject, content = content, like_count = like_count, author = author)
+				p = Post(parent = blog_key(), subject = subject, content = content, author = author)
 				p.put()
 				self.redirect('/blog/%s' % str(p.key().id()))
 			else:
 				error = "subject and content, please!"
-				self.render("newpost.html", subject=subject, content=content, error=error)
+				self.render('newpost.html', subject=subject, content=content, error=error)
 		
 		if "cancel" in self.request.POST:
 			self.redirect('/blog')
@@ -211,20 +209,20 @@ class EditPost(Handler):
 		if self.user:
 			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
 			post = db.get(key)
+			if not post:
+				self.error(404)
+				return
+
 			if self.user.name == post.author:
 				self.render("edit-post.html", post=post)
 			else:
-				#posts = db.GqlQuery("select * from Post order by created desc limit 10")
-				#self.render("front.html", posts = posts)
-				error = "You can't edit other Users posts!"
-				self.redirect("/blog", error = error)
 				self.write("You can't edit other User's posts!")
 		else:
-			self.redirect("/login")
+			return self.redirect('/login')
 
 	def post(self, post_id):
 		if not self.user:
-			self.redirect('/blog')
+			return self.redirect('/blog')
 
 		subject = self.request.get('subject')
 		content = self.request.get('content')
@@ -239,9 +237,6 @@ class EditPost(Handler):
 			else:
 				error = "subject and content, please!"
 				self.render("edit-post.html", subject=subject, content=content, error=error)
-
-		if "cancel" in self.request.POST:
-			self.redirect('/blog/%s' % str(post_id))
 
 		if "delete" in self.request.POST:
 			if not self.user:
@@ -263,15 +258,16 @@ class DelConfirmation(Handler):
 
 	def post(self, post_id):
 		if not self.user:
-			self.redirect('/blog')
+			return self.redirect('/blog')
 
 		if "delete-post" in self.request.POST:
 			delVal = Post.get_by_id(int(post_id), parent=blog_key())
 			delVal.delete()
-			self.redirect("/blog")
+			time.sleep(0.1)
+			return self.redirect("/blog")
 
 		if "cancel-delete" in self.request.POST:
-			self.redirect("/blog")
+			return self.redirect("/blog")
 
 class LikePost(Handler):
 	'''Handler for Liking Posts'''
@@ -280,6 +276,10 @@ class LikePost(Handler):
 		if self.user:
 			key = db.Key.from_path('Post', int(post_id), parent=blog_key())
 			post = db.get(key)
+
+			if not post:
+				self.error(404)
+				return
 
 			if self.user.name != post.author:
 				if self.user.name in post.user_like:
@@ -292,8 +292,7 @@ class LikePost(Handler):
 					self.redirect("/blog")
 			if self.user.name == post.author:
 				self.write("you can't like your own post!")
-				'''error = "You can't like your own post!"
-				self.render("front.html", post = post, error = error)'''
+
 		else:
 			self.redirect("/login")
 
@@ -307,7 +306,7 @@ class CommentPostPage(Handler):
 			post = db.get(key)
 
 			if not post:
-				self.error(404)
+				return self.error(404)
 
 			comments = db.GqlQuery("SELECT * FROM Comment WHERE postid =:1", str(post_id))
 			self.render("post-comments.html", post = post, comments=comments)
@@ -316,7 +315,7 @@ class CommentPostPage(Handler):
 
 	def post(self, post_id):
 		if not self.user:
-			self.redirect('/blog')
+			return self.redirect('/blog')
 
 		if "submit" in self.request.POST:
 			content = self.request.get('content')
@@ -326,9 +325,9 @@ class CommentPostPage(Handler):
 				c = Comment(postid = post_id, content = content, author = author)
 				c.put()
 				time.sleep(0.1)
-				self.redirect('/blog/commentpost/%s' % post_id)
+				return self.redirect('/blog/commentpost/%s' % post_id)
 		if "cancel" in self.request.POST:
-			self.redirect("/blog/%s" % str(post_id))
+			return self.redirect("/blog/%s" % str(post_id))
 
 class EditComment(Handler):
 	'''Handler for editing comments for a post'''
@@ -337,6 +336,9 @@ class EditComment(Handler):
 		if self.user:
 			key = db.Key.from_path('Comment', int(comment_id))
 			comment = db.get(key)
+			if not comment:
+				return self.error(404)
+
 			if self.user.name == comment.author:
 				self.render("edit-comment.html", comment = comment)
 			else:
@@ -346,9 +348,9 @@ class EditComment(Handler):
 
 	def post(self, comment_id):
 		if not self.user:
-			self.redirect("/blog")
+			return self.redirect("/blog")
 
-		content = self.request.get("content")
+		content = self.request.get('content')
 		commentVal = Comment.get_by_id(int(comment_id))
 
 		if "update" in self.request.POST:
@@ -356,11 +358,7 @@ class EditComment(Handler):
 				commentVal.content = content
 				commentVal.put()
 				time.sleep(0.1)
-				self.redirect("/blog/commentpost/%s" % str(commentVal.postid))
-		
-		if "cancel" in self.request.POST:
-			self.redirect('/blog/commentpost/%s' % str(commentVal.postid))
-			#self.write("working")
+				return self.redirect("/blog/commentpost/%s" % str(commentVal.postid))
 
 ##Registration and Login Handlers
 
@@ -414,7 +412,7 @@ class Signup(Handler):
 			else:
 				self.done()
 		if "cancel" in self.request.POST:
-			self.redirect("/blog")
+			return self.redirect("/blog")
 
 	def done(self, *a, **kw):
 		raise NotImplementedError
@@ -454,7 +452,7 @@ class Login(Handler):
 				msg = 'Invalid login'
 				self.render('login-form.html', error = msg)
 		if "cancel" in self.request.POST:
-			self.redirect("/blog")
+			return self.redirect("/blog")
 
 class Logout(Handler):
 	'''Handler for User logout'''

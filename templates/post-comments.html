@@ -13,6 +13,7 @@
 		<textarea name = "content">{{content}}</textarea>
 		<br>
 		<input type="submit" name="submit" value="Submit">
-		<input type="submit" name="cancel" value="Cancel">
 	</form>
+		<br>
+		<a href="/blog/{{post.key().id()}}"><button>Cancel</button></a>
 {% endblock %}
