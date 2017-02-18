@@ -265,6 +265,8 @@ class EditPost(Handler):
         if "update" in self.request.POST:
             if subject and content:
                 upVal = Post.get_by_id(int(post_id), parent=blog_key())
+                if not upVal:
+                    return self.error(404)
                 upVal.subject = subject
                 upVal.content = content
                 upVal.put()
@@ -297,6 +299,8 @@ class DelConfirmation(Handler):
         if self.user:
             key = db.Key.from_path('Post', int(post_id), parent=blog_key())
             query = db.get(key)
+            if not query:
+                return self.error(404)
             self.render("delete-confirmation.html", query=query)
         else:
             self.redirect("/login")
