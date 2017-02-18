@@ -17,7 +17,8 @@ jinja_env = jinja2.Environment(
     autoescape=True)
 error = ""
 
-secret = 'all your base belong to us'
+file = open('secret.txt', 'r')
+secret = file.read()
 
 
 def render_str(template, **params):
